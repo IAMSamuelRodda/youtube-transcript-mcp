@@ -3,7 +3,11 @@
 MCP Server for YouTube Transcripts.
 
 Provides tools to extract transcripts from YouTube videos using
-the youtube-transcript-api library. No API keys required.
+the youtube-transcript-api library.
+
+Requirements:
+    - No credentials required (public API)
+    - No OpenBao integration needed (no secrets)
 
 Tools:
     - get_transcript: Get plain text transcript
