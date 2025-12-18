@@ -12,7 +12,7 @@ Requirements:
 Tools:
     - get_transcript: Get plain text transcript
     - get_timed_transcript: Get transcript with timestamps
-    - get_video_info: Get video metadata (title, etc.)
+    - get_video_info: Get available transcript languages
 """
 
 import re
@@ -26,6 +26,9 @@ from youtube_transcript_api._errors import (
     TranscriptsDisabled,
     VideoUnavailable,
 )
+
+# Create API instance (new API requires instance, not class methods)
+_api = YouTubeTranscriptApi()
 
 # Initialize the MCP server
 mcp = FastMCP("youtube_transcript")
@@ -73,29 +76,23 @@ def get_transcript(params: TranscriptInput) -> str:
     try:
         video_id = extract_video_id(params.video_url)
 
-        # Get available transcripts
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-
-        # Try to get transcript in requested language or auto-detect
+        # Determine languages to try
         if params.language:
-            try:
-                transcript = transcript_list.find_transcript([params.language])
-            except NoTranscriptFound:
-                # Fall back to any available transcript
-                transcript = transcript_list.find_transcript(['en'])
+            languages = [params.language, 'en']
         else:
-            # Try English first, then any available
-            try:
-                transcript = transcript_list.find_transcript(['en'])
-            except NoTranscriptFound:
-                # Get first available transcript
-                transcript = next(iter(transcript_list))
+            languages = ['en']
 
-        # Fetch the actual transcript data
-        transcript_data = transcript.fetch()
+        # Fetch transcript directly (new API)
+        try:
+            result = _api.fetch(video_id, languages=languages)
+        except NoTranscriptFound:
+            # Try to get any available transcript
+            transcript_list = _api.list(video_id)
+            first_transcript = next(iter(transcript_list))
+            result = first_transcript.fetch()
 
-        # Combine all text segments
-        full_text = ' '.join(segment['text'] for segment in transcript_data)
+        # Combine all text segments (snippets have .text attribute)
+        full_text = ' '.join(snippet.text for snippet in result.snippets)
 
         # Clean up whitespace
         full_text = re.sub(r'\s+', ' ', full_text).strip()
@@ -104,7 +101,7 @@ def get_transcript(params: TranscriptInput) -> str:
         if len(full_text) > MAX_TRANSCRIPT_LENGTH:
             full_text = full_text[:MAX_TRANSCRIPT_LENGTH] + "\n\n[Transcript truncated due to length]"
 
-        return f"Video ID: {video_id}\nLanguage: {transcript.language_code}\n\n{full_text}"
+        return f"Video ID: {video_id}\nLanguage: {result.language_code}\n\n{full_text}"
 
     except VideoUnavailable:
         return f"Error: Video '{params.video_url}' is unavailable or does not exist."
@@ -129,41 +126,38 @@ def get_timed_transcript(params: TimedTranscriptInput) -> str:
     try:
         video_id = extract_video_id(params.video_url)
 
-        # Get available transcripts
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-
-        # Try to get transcript in requested language or auto-detect
+        # Determine languages to try
         if params.language:
-            try:
-                transcript = transcript_list.find_transcript([params.language])
-            except NoTranscriptFound:
-                transcript = transcript_list.find_transcript(['en'])
+            languages = [params.language, 'en']
         else:
-            try:
-                transcript = transcript_list.find_transcript(['en'])
-            except NoTranscriptFound:
-                transcript = next(iter(transcript_list))
+            languages = ['en']
 
-        # Fetch the actual transcript data
-        transcript_data = transcript.fetch()
+        # Fetch transcript directly (new API)
+        try:
+            result = _api.fetch(video_id, languages=languages)
+        except NoTranscriptFound:
+            # Try to get any available transcript
+            transcript_list = _api.list(video_id)
+            first_transcript = next(iter(transcript_list))
+            result = first_transcript.fetch()
 
-        # Format with timestamps
+        # Format with timestamps (snippets have .start and .text attributes)
         lines = []
-        for segment in transcript_data:
-            start_seconds = int(segment['start'])
+        for snippet in result.snippets:
+            start_seconds = int(snippet.start)
             minutes = start_seconds // 60
             seconds = start_seconds % 60
             timestamp = f"[{minutes:02d}:{seconds:02d}]"
-            text = segment['text'].strip()
+            text = snippet.text.strip()
             lines.append(f"{timestamp} {text}")
 
-        result = '\n'.join(lines)
+        output = '\n'.join(lines)
 
         # Truncate if too long
-        if len(result) > MAX_TRANSCRIPT_LENGTH:
-            result = result[:MAX_TRANSCRIPT_LENGTH] + "\n\n[Transcript truncated due to length]"
+        if len(output) > MAX_TRANSCRIPT_LENGTH:
+            output = output[:MAX_TRANSCRIPT_LENGTH] + "\n\n[Transcript truncated due to length]"
 
-        return f"Video ID: {video_id}\nLanguage: {transcript.language_code}\n\n{result}"
+        return f"Video ID: {video_id}\nLanguage: {result.language_code}\n\n{output}"
 
     except VideoUnavailable:
         return f"Error: Video '{params.video_url}' is unavailable or does not exist."
@@ -192,8 +186,8 @@ def get_video_info(params: VideoInfoInput) -> str:
     try:
         video_id = extract_video_id(params.video_url)
 
-        # Get available transcripts
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        # Get available transcripts (new API uses instance method)
+        transcript_list = _api.list(video_id)
 
         # Collect language info
         manual = []
