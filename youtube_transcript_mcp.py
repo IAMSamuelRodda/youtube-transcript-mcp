@@ -226,5 +226,10 @@ def get_video_info(params: VideoInfoInput) -> str:
         return f"Error retrieving video info: {str(e)}"
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for youtube-transcript-mcp command."""
     mcp.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,19 @@
+{
+  "name": "youtube-transcript-mcp",
+  "version": "1.0.0",
+  "description": "YouTube transcript extraction MCP server - no API key required",
+  "author": {
+    "name": "Samuel Rodda",
+    "email": "samuel@arcforge.au"
+  },
+  "homepage": "https://github.com/IAMSamuelRodda/youtube-transcript-mcp",
+  "repository": "https://github.com/IAMSamuelRodda/youtube-transcript-mcp",
+  "license": "MIT",
+  "keywords": ["youtube", "transcripts", "mcp", "video", "subtitles", "captions"],
+  "mcpServers": {
+    "youtube-transcript": {
+      "command": "uvx",
+      "args": ["--from", "git+https://github.com/IAMSamuelRodda/youtube-transcript-mcp", "youtube-transcript-mcp"]
+    }
+  }
+}
